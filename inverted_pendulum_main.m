@@ -33,20 +33,28 @@ C = [1 0 0 0;
 
 D = zeros(2, 1);
 
-eigs(A)
-
 sys = ss(A, B, C, D);
 
 %% Open Loop Analysis
 
-% Poles
+% Eigenvalues of system matrix:
+eigs(A)
+
+% Poles:
 pole(sys)
 
-% Transmission zeros 
+% Transmission zeros:
 tzero(sys)
 
-% Stability, controllability, observability, stabilizability, detectability
-% minimality ?
+% Controllability (=> stabilizable)
+Co = ctrb(A,B);
+rank(Co)
+
+% Observability (=> detectable)
+Ob = obsv(A,C);
+rank(Ob)
+
+% Controllable & observable <=> minimal
 
 %% LQR Controller 
 
@@ -59,6 +67,9 @@ Dc = zeros(4, 1);
 sysc = ss(A, B, Cc, Dc);
 
 %% TUNING Q ---- 
+clear Qs;
+clear Rs;
+x_desired = 1;
 
 Qs{1} = [0.25 0 0 0;
      0 4 0 0;
@@ -80,43 +91,8 @@ Qs{5} = [0.25 0 0 0;
      0 4 0 0;
      0 0 0 0;
      0 0 0 2];
-Qs{6} = [0.25 0 0 0;
-     0 4 0 0;
-     0 0 0 0;
-     0 0 0 0.5];
-Qs{7} = [0.25 0 0 0;
-     0 3 0 0;
-     0 0 0 0;
-     0 0 0 0.5];
-Qs{8} = [0.25 0 0 0;
-     0 5 0 0;
-     0 0 0 0;
-     0 0 0 0.5];
-Qs{9} = [0.15 0 0 0;
-     0 4 0 0;
-     0 0 0 0;
-     0 0 0 0.5];
-Qs{10} = [0.35 0 0 0;
-     0 4 0 0;
-     0 0 0 0;
-     0 0 0 0.5];
-Qs{11} = [0.2 0 0 0;
-     0 5 0 0;
-     0 0 0 0;
-     0 0 0 0.5];
 
-% Qt = [0.2 0 0 0;
-%      0 5 0 0;
-%      0 0 0 0;
-%      0 0 0 0.5];
-
-Qt = [0.15 0 0 0;
-     0 4 0 0;
-     0 0 0 0;
-     0 0 0 0.5];
-
-Rs = [0.003 0.003 0.003 0.003 0.003 0.003 0.003 ... 
-    0.003 0.003 0.003 0.003 0.003 0.003];
+Rs = [0.003 0.003 0.003 0.003 0.003];
 
 % Cell arrays to store the simulation results
 
@@ -140,7 +116,7 @@ for i=1:length(Qs)
     x{i} = p.signals(1).values(:, 2);
     alpha{i} = p.signals(2).values();
     u{i} = p.signals(3).values();
-    leg{i}=sprintf('Q_{%i}', i);
+    leg{i}=sprintf('Q = diag([%g %g %g %g]), R=%g',Qs{i}(1,1),Qs{i}(2,2),Qs{i}(3,3),Qs{i}(4,4));
 end
 
 % Plotting the results
@@ -181,9 +157,108 @@ subplot(1, 3, 3);
 legend(leg);
 grid
 
+% Repeating with other values of Q
+
+Qs{1} = [0.25 0 0 0;
+     0 4 0 0;
+     0 0 0 0;
+     0 0 0 0.5];
+Qs{2} = [0.25 0 0 0;
+     0 3 0 0;
+     0 0 0 0;
+     0 0 0 0.5];
+Qs{3} = [0.25 0 0 0;
+     0 5 0 0;
+     0 0 0 0;
+     0 0 0 0.5];
+Qs{4} = [0.15 0 0 0;
+     0 4 0 0;
+     0 0 0 0;
+     0 0 0 0.5];
+Qs{5} = [0.35 0 0 0;
+     0 4 0 0;
+     0 0 0 0;
+     0 0 0 0.5];
+Qs{6} = [0.2 0 0 0;
+     0 5 0 0;
+     0 0 0 0;
+     0 0 0 0.5];
+
+Rs = [0.003 0.003 0.003 0.003 0.003 0.003];
+
+% Cell arrays to store the simulation results
+
+x_ref = {};
+x = {};
+alpha = {};
+u = {};
+time = {};
+leg = {};
+
+for i=1:length(Qs)
+    Q = Qs{i};
+    R = Rs(i);
+    % Computing the state feedback gain
+    K = lqr(sysc, Q, R);
+    % Simulating the closed-loop in Simulink
+    out = sim('inverted_pendulum.slx');
+    p = get(out, 'ScopeData2');
+    time{i} = p.time;
+    x_ref{i} = p.signals(1).values(:, 1);
+    x{i} = p.signals(1).values(:, 2);
+    alpha{i} = p.signals(2).values();
+    u{i} = p.signals(3).values();
+    leg{i}=sprintf('Q = diag([%g %g %g %g]), R=%g',Qs{i}(1,1),Qs{i}(2,2),Qs{i}(3,3),Qs{i}(4,4));
+end
+
+
+% Plotting the results
+figure;
+lw = 1.2; %linewidth
+
+for i=1:length(Qs)
+    % Plotting the step response of the horizontal position
+    subplot(1, 3, 1); hold on;
+    plot(time{i}, x{i}, '-', 'LineWidth', lw);
+    xlabel('t[s]'); ylabel('x(t) [m]'); box on;
+
+    % Plotting the step response of the angle alpha
+    subplot(1, 3, 2); hold on;
+    plot(time{i}, alpha{i}, '-', 'LineWidth', lw);
+    xlabel('t[s]'); ylabel('alpha(t) [rad]'); box on;
+
+    % Plotting the control action
+    subplot(1, 3, 3); hold on;
+    plot(time{i}, u{i}, '-', 'LineWidth', lw);
+    xlabel('t[s]'); ylabel('u(t) [V]'); box on;
+end
+
+% Plotting the reference
+subplot(1, 3, 1);
+stairs(time{i}, x_ref{i}, 'k--', 'LineWidth', lw);
+leg_ext = leg;
+leg_ext{end + 1} = 'reference';
+legend(leg_ext, 'location', 'best');
+v = axis;
+axis([v(1) v(2) -0.2 1.2])
+grid
+
+subplot(1, 3, 2)
+legend(leg);
+grid
+subplot(1, 3, 3);
+legend(leg);
+grid
+
+
 %% TUNING R -----
 
-Rs = [0.003 0.006 0.008 0.01];%0.001];
+Rs = [0.003 0.006 0.008 0.01];
+
+Qt = [0.35 0 0 0;
+     0 4 0 0;
+     0 0 0 0;
+     0 0 0 0.5];
 
 x_ref = {};
 x = {};
@@ -254,29 +329,10 @@ Qf = [0.35 0 0 0;
      0 4 0 0;
      0 0 0 0;
      0 0 0 0.5];
-% 
-% Qf = [0.25 0 0 0;
-%      0 4 0 0;
-%      0 0 1 0;
-%      0 0 0 1];
-
-% Qf = [0.2 0 0 0;
-%      0 5 0 0;
-%      0 0 0 0;
-%      0 0 0 0.5];
-
-% Qf = [0.8 0 0 0;
-%      0 8 0 0;
-%      0 0 0.5 0;
-%      0 0 0 4];
 
 Rf = 0.008;
 
-K = lqr(sys, Qf, Rf)
-
-% K = [-7.9057 -52.3826 -14.3830 -12.2393]
-
-% Checking the properties of the closed-loop control system
+K = lqr(sys, Qf, Rf);
 
 H = feedback(sysc, K);
 
@@ -286,22 +342,121 @@ pole(H)
 % Transmission zeroes
 tzero(H)
 
+%% Response to step input of size 0.1
 
-%% Discretizing the model
+x_desired = 0.1;
+
+out = sim('inverted_pendulum.slx');
+p = get(out, 'ScopeData2');
+time = p.time;
+x_ref = p.signals(1).values(:, 1);
+x = p.signals(1).values(:, 2);
+alpha = p.signals(2).values();
+u = p.signals(3).values();
+leg=sprintf('Q = diag([%g %g %g %g]), R=%g',Q(1,1),Q(2,2),Q(3,3),Q(4,4), R);
+
+% Plotting the results
+figure;
+lw = 1.2; %linewidth
+
+
+% Plotting the step response of the horizontal position
+subplot(1, 3, 1); hold on;
+plot(time, x, '-', 'LineWidth', lw);
+xlabel('t[s]'); ylabel('x(t) [m]'); box on;
+
+% Plotting the step response of the angle alpha
+subplot(1, 3, 2); hold on;
+plot(time, alpha, '-', 'LineWidth', lw);
+xlabel('t[s]'); ylabel('alpha(t) [rad]'); box on;
+
+% Plotting the control action
+subplot(1, 3, 3); hold on;
+plot(time, u, '-', 'LineWidth', lw);
+xlabel('t[s]'); ylabel('u(t) [V]'); box on;
+
+% Plotting the reference
+subplot(1, 3, 1);
+stairs(time, x_ref, 'k--', 'LineWidth', lw);
+leg_ext = {leg};
+leg_ext{2} = 'reference';
+legend(leg_ext, 'location', 'best');
+v = axis;
+axis([v(1) v(2) -0.02 x_desired + 0.02])
+
+grid
+
+subplot(1, 3, 2)
+legend(leg);
+grid
+subplot(1, 3, 3);
+legend(leg);
+grid
+
+
+%% Second Closed-Loop System
+x_desired = 0.1;
+
+% Designing the filter
 Ts = 0.005;
-sysd = c2d(sysc, Ts, 'tustin');
-Ad = sysd.A;
-Bd = sysd.B;
-Cd = sysd.C;
-Dd = sysd.D;
-
-Kd = lqr(sysd, Qf, Rf);
-
-
-%% Designing the filter 
 wc = pi;
 numerator_filter = wc*Ts;
 filter_pole = 1/(1+wc*Ts);
+
+
+x_desired = 0.1;
+
+% Simulation results
+
+out = sim('inverted_pendulum.slx');
+p = get(out, 'ScopeData2');
+time = p.time;
+x_ref = p.signals(1).values(:, 1);
+x = p.signals(1).values(:, 2);
+alpha = p.signals(2).values();
+u = p.signals(3).values();
+leg=sprintf('R=%g', R);
+
+% Plotting the results
+figure;
+lw = 1.2; %linewidth
+
+
+% Plotting the step response of the horizontal position
+subplot(1, 3, 1); hold on;
+plot(time, x, '-', 'LineWidth', lw);
+xlabel('t[s]'); ylabel('x(t) [m]'); box on;
+
+% Plotting the step response of the angle alpha
+subplot(1, 3, 2); hold on;
+plot(time, alpha, '-', 'LineWidth', lw);
+xlabel('t[s]'); ylabel('alpha(t) [rad]'); box on;
+
+% Plotting the control action
+subplot(1, 3, 3); hold on;
+plot(time, u, '-', 'LineWidth', lw);
+xlabel('t[s]'); ylabel('u(t) [V]'); box on;
+
+% Plotting the reference
+subplot(1, 3, 1);
+stairs(time, x_ref, 'k--', 'LineWidth', lw);
+leg_ext = {leg};
+leg_ext{2} = 'reference';
+legend(leg_ext, 'location', 'best');
+v = axis;
+axis([v(1) v(2) -0.02 x_desired + 0.02])
+
+grid
+
+subplot(1, 3, 2)
+legend(leg);
+grid
+subplot(1, 3, 3);
+legend(leg);
+grid
+
+%% 
+
 
 
 
