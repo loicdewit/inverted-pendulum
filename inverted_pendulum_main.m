@@ -66,7 +66,7 @@ Dc = zeros(4, 1);
 
 sysc = ss(A, B, Cc, Dc);
 
-%% TUNING Q ---- 
+%% TUNING Q ---- Corresponding diagram found in closed_loop_diagram_1.slx
 clear Qs;
 clear Rs;
 x_desired = 1;
@@ -109,14 +109,14 @@ for i=1:length(Qs)
     % Computing the state feedback gain
     K = lqr(sysc, Q, R);
     % Simulating the closed-loop in Simulink
-    out = sim('inverted_pendulum.slx');
+    out = sim('closed_loop_diagram_1.slx');
     p = get(out, 'ScopeData2');
     time{i} = p.time;
     x_ref{i} = p.signals(1).values(:, 1);
     x{i} = p.signals(1).values(:, 2);
     alpha{i} = p.signals(2).values();
     u{i} = p.signals(3).values();
-    leg{i}=sprintf('Q = diag([%g %g %g %g]), R=%g',Qs{i}(1,1),Qs{i}(2,2),Qs{i}(3,3),Qs{i}(4,4));
+    leg{i}=sprintf('Q = diag([%g %g %g %g]), R=0.003',Qs{i}(1,1),Qs{i}(2,2),Qs{i}(3,3),Qs{i}(4,4));
 end
 
 % Plotting the results
@@ -160,29 +160,21 @@ grid
 % Repeating with other values of Q
 
 Qs{1} = [0.25 0 0 0;
-     0 4 0 0;
+     0 5 0 0;
      0 0 0 0;
-     0 0 0 0.5];
+     0 0 0 0];
 Qs{2} = [0.25 0 0 0;
      0 3 0 0;
      0 0 0 0;
-     0 0 0 0.5];
-Qs{3} = [0.25 0 0 0;
-     0 5 0 0;
-     0 0 0 0;
-     0 0 0 0.5];
-Qs{4} = [0.15 0 0 0;
+     0 0 0 0];
+Qs{3} = [0.15 0 0 0;
      0 4 0 0;
      0 0 0 0;
-     0 0 0 0.5];
-Qs{5} = [0.35 0 0 0;
+     0 0 0 0];
+Qs{4} = [0.35 0 0 0;
      0 4 0 0;
      0 0 0 0;
-     0 0 0 0.5];
-Qs{6} = [0.2 0 0 0;
-     0 5 0 0;
-     0 0 0 0;
-     0 0 0 0.5];
+     0 0 0 0];
 
 Rs = [0.003 0.003 0.003 0.003 0.003 0.003];
 
@@ -201,14 +193,14 @@ for i=1:length(Qs)
     % Computing the state feedback gain
     K = lqr(sysc, Q, R);
     % Simulating the closed-loop in Simulink
-    out = sim('inverted_pendulum.slx');
+    out = sim('closed_loop_diagram_1.slx');
     p = get(out, 'ScopeData2');
     time{i} = p.time;
     x_ref{i} = p.signals(1).values(:, 1);
     x{i} = p.signals(1).values(:, 2);
     alpha{i} = p.signals(2).values();
     u{i} = p.signals(3).values();
-    leg{i}=sprintf('Q = diag([%g %g %g %g]), R=%g',Qs{i}(1,1),Qs{i}(2,2),Qs{i}(3,3),Qs{i}(4,4));
+    leg{i}=sprintf('Q = diag([%g %g %g %g]), R=0.003',Qs{i}(1,1),Qs{i}(2,2),Qs{i}(3,3),Qs{i}(4,4));
 end
 
 
@@ -273,7 +265,7 @@ for i=1:length(Rs)
     % Computing the state feedback gain
     K = lqr(sysc, Q, R);
     % Simulating the closed-loop in Simulink
-    out = sim('inverted_pendulum.slx');
+    out = sim('closed_loop_diagram_1.slx');
     p = get(out, 'ScopeData2');
     time{i} = p.time;
     x_ref{i} = p.signals(1).values(:, 1);
@@ -332,7 +324,7 @@ Qf = [0.35 0 0 0;
 
 Rf = 0.008;
 
-K = lqr(sys, Qf, Rf);
+K = lqr(sys, Qf, Rf)
 
 H = feedback(sysc, K);
 
@@ -346,14 +338,14 @@ tzero(H)
 
 x_desired = 0.1;
 
-out = sim('inverted_pendulum.slx');
+out = sim('closed_loop_diagram_1.slx');
 p = get(out, 'ScopeData2');
 time = p.time;
 x_ref = p.signals(1).values(:, 1);
 x = p.signals(1).values(:, 2);
 alpha = p.signals(2).values();
 u = p.signals(3).values();
-leg=sprintf('Q = diag([%g %g %g %g]), R=%g',Q(1,1),Q(2,2),Q(3,3),Q(4,4), R);
+leg=sprintf('Q = diag([%g %g %g %g]), R=%g',Qf(1,1),Qf(2,2),Qf(3,3),Qf(4,4), Rf);
 
 % Plotting the results
 figure;
@@ -394,68 +386,14 @@ legend(leg);
 grid
 
 
-%% Second Closed-Loop System
-x_desired = 0.1;
+%% Second Closed-Loop System (found in closed_loop_diagram_2.slx)
+x_desired = -0.1;
 
 % Designing the filter
 Ts = 0.005;
-wc = pi;
+wc = 24*pi;
 numerator_filter = wc*Ts;
 filter_pole = 1/(1+wc*Ts);
-
-
-x_desired = 0.1;
-
-% Simulation results
-
-out = sim('inverted_pendulum.slx');
-p = get(out, 'ScopeData2');
-time = p.time;
-x_ref = p.signals(1).values(:, 1);
-x = p.signals(1).values(:, 2);
-alpha = p.signals(2).values();
-u = p.signals(3).values();
-leg=sprintf('R=%g', R);
-
-% Plotting the results
-figure;
-lw = 1.2; %linewidth
-
-
-% Plotting the step response of the horizontal position
-subplot(1, 3, 1); hold on;
-plot(time, x, '-', 'LineWidth', lw);
-xlabel('t[s]'); ylabel('x(t) [m]'); box on;
-
-% Plotting the step response of the angle alpha
-subplot(1, 3, 2); hold on;
-plot(time, alpha, '-', 'LineWidth', lw);
-xlabel('t[s]'); ylabel('alpha(t) [rad]'); box on;
-
-% Plotting the control action
-subplot(1, 3, 3); hold on;
-plot(time, u, '-', 'LineWidth', lw);
-xlabel('t[s]'); ylabel('u(t) [V]'); box on;
-
-% Plotting the reference
-subplot(1, 3, 1);
-stairs(time, x_ref, 'k--', 'LineWidth', lw);
-leg_ext = {leg};
-leg_ext{2} = 'reference';
-legend(leg_ext, 'location', 'best');
-v = axis;
-axis([v(1) v(2) -0.02 x_desired + 0.02])
-
-grid
-
-subplot(1, 3, 2)
-legend(leg);
-grid
-subplot(1, 3, 3);
-legend(leg);
-grid
-
-%% 
 
 
 
