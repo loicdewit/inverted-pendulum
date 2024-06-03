@@ -2,3 +2,7 @@ slprj/
 *.slxc
 *.asv
 *.DS_Store
+*.slxc
+DC_motor_example_LQR_v2.m
+DC_motor_simulink.slx
+DC_motor_simulink.slxc
